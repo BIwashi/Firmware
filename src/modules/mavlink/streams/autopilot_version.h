@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2014 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,46 +31,55 @@
  *
  ****************************************************************************/
 
-/**
- * @file mavlink_messages.h
- * MAVLink 1.0 message formatters definition.
- *
- * @author Anton Babushkin <anton.babushkin@me.com>
- */
+#pragma once
 
-#ifndef MAVLINK_MESSAGES_H_
-#define MAVLINK_MESSAGES_H_
+#include "../mavlink_messages.h"
 
-#include "mavlink_stream.h"
-
-class StreamListItem
+class MavlinkStreamAutopilotVersion : public MavlinkStream
 {
-
 public:
-	MavlinkStream *(*new_instance)(Mavlink *mavlink);
-	const char *name;
-	uint16_t id;
+	const char *get_name() const override
+	{
+		return MavlinkStreamAutopilotVersion::get_name_static();
+	}
 
-	StreamListItem(MavlinkStream * (*inst)(Mavlink *mavlink), const char *_name, uint16_t _id) :
-		new_instance(inst),
-		name(_name),
-		id(_id) {}
+	static constexpr const char *get_name_static()
+	{
+		return "AUTOPILOT_VERSION";
+	}
 
-	const char *get_name() const { return name; }
-	uint16_t get_id() const { return id; }
+	static constexpr uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_AUTOPILOT_VERSION;
+	}
+
+	uint16_t get_id() override
+	{
+		return get_id_static();
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamAutopilotVersion(mavlink);
+	}
+
+	unsigned get_size() override
+	{
+		return MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+private:
+	/* do not allow top copying this class */
+	MavlinkStreamAutopilotVersion(MavlinkStreamAutopilotVersion &) = delete;
+	MavlinkStreamAutopilotVersion &operator = (const MavlinkStreamAutopilotVersion &) = delete;
+
+
+protected:
+	explicit MavlinkStreamAutopilotVersion(Mavlink *mavlink) : MavlinkStream(mavlink)
+	{}
+
+	bool send(const hrt_abstime t) override
+	{
+		return _mavlink->send_autopilot_capabilities();
+	}
 };
-
-template <class T>
-static StreamListItem create_stream_list_item()
-{
-	return StreamListItem(&T::new_instance, T::get_name_static(), T::get_id_static());
-}
-
-const char *get_stream_name(const uint16_t msg_id);
-MavlinkStream *create_mavlink_stream(const char *stream_name, Mavlink *mavlink);
-MavlinkStream *create_mavlink_stream(const uint16_t msg_id, Mavlink *mavlink);
-
-void get_mavlink_navigation_mode(const struct vehicle_status_s *const status, uint8_t *mavlink_base_mode,
-				 union px4_custom_mode *custom_mode);
-
-#endif /* MAVLINK_MESSAGES_H_ */
